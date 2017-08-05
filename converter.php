@@ -21,10 +21,10 @@ class converter
         if (empty($access_token))
             throw new ErrorException("Access token cannot be empty!");
         else
-            $request = \Httpful\Request::get(converter::BASE_URL."location/".str_replace(" ","%20",$station_name))
+            $request = \Httpful\Request::get(converter::BASE_URL . "location/" . str_replace(" ", "%20", $station_name))
                 ->addHeader('Authorization', 'Bearer ' . $access_token)
                 ->send();
-        $request = json_decode($request,true);
+        $request = json_decode($request, true);
         return $request[0]['id'];
     }
 }
