@@ -56,7 +56,8 @@ class converter
                 $data['category'] = str_replace(" ", "", substr($item->name, 0, 3));
             }
             $temp_journey = converter::get_journey_details($access_token, $item->detailsId);
-            $data['stop']['operator'] = $temp_journey[count($temp_journey) - 1]['operator'];
+            $data['operator'] = $temp_journey[0]['operator'];
+            $data['to'] = $temp_journey[count($temp_journey) - 1]['stopName'];
 
             array_push($result, $data);
         }
@@ -69,7 +70,7 @@ class converter
         if (empty($access_token))
             throw new ErrorException("Access token cannot be empty!");
         else
-            $request = \Httpful\Request::get(converter::BASE_URL . "fahrplan-plus/v1/journeyDetails/$journey_details")
+            $request = \Httpful\Request::get(converter::BASE_URL . "fahrplan-plus/v1/journeyDetails/" . urlencode($journey_details))
                 ->addHeader('Authorization', 'Bearer ' . $access_token)
                 ->send();
 
