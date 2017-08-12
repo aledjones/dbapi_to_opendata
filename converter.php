@@ -64,7 +64,7 @@ class converter
         return array('stationboard' => $result);
     }
 
-    public function get_journey_details(string $access_token, string $journey_details)
+    public function get_journey_details($access_token, $journey_details)
     {
         if (empty($access_token))
             throw new ErrorException("Access token cannot be empty!");
@@ -76,7 +76,7 @@ class converter
         return json_decode($request->raw_body, true);
     }
 
-    public function get_station_id_by_name(string $access_token, string $station_name)
+    public function get_station_id_by_name($access_token, $station_name)
     {
         if (empty($access_token))
             throw new ErrorException("Access token cannot be empty!");
@@ -88,7 +88,7 @@ class converter
         return $request[0]['id'];
     }
 
-    public function get_station_details(string $access_token, int $station_id)
+    public function get_station_details($access_token, $station_id)
     {
         if (empty($access_token))
             throw new ErrorException("Access token cannot be empty!");
