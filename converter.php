@@ -58,6 +58,9 @@ class converter
             $temp_journey = converter::get_journey_details($access_token, $item->detailsId);
             $data['operator'] = $temp_journey[0]['operator'];
             $data['to'] = $temp_journey[count($temp_journey) - 1]['stopName'];
+            $temp_station_details = converter::get_station_details($access_token, $item->stopId);
+            $data['stop']['station']['coordinate']['x'] = converter::get_main_point($temp_station_details[0]->evaNumbers)['x'];
+            $data['stop']['station']['coordinate']['y'] = converter::get_main_point($temp_station_details[0]->evaNumbers)['y'];
 
             array_push($result, $data);
         }
@@ -77,6 +80,28 @@ class converter
         return json_decode($request->raw_body, true);
     }
 
+    public function get_station_details($access_token, $station_id)
+    {
+        if (empty($access_token))
+            throw new ErrorException("Access token cannot be empty!");
+        else
+            $request = \Httpful\Request::get(converter::BASE_URL . "stada/v2/stations?eva=$station_id")
+                ->addHeader('Authorization', 'Bearer ' . $access_token)
+                ->send();
+        return json_decode($request->raw_body)->result;
+    }
+
+    private function get_main_point($evaNumbers)
+    {
+        $result_set = array('x' => null, 'y' => null);
+        foreach ($evaNumbers as $item) {
+            if ($item->isMain === true) {
+                $result_set = array('x' => $item->geographicCoordinates->coordinates[1], 'y' => $item->geographicCoordinates->coordinates[0]);
+            }
+        }
+        return $result_set;
+    }
+
     public function get_station_id_by_name($access_token, $station_name)
     {
         if (empty($access_token))
@@ -87,16 +112,5 @@ class converter
                 ->send();
         $request = json_decode($request, true);
         return $request[0]['id'];
-    }
-
-    public function get_station_details($access_token, $station_id)
-    {
-        if (empty($access_token))
-            throw new ErrorException("Access token cannot be empty!");
-        else
-            $request = \Httpful\Request::get(converter::BASE_URL . "stada/v2/stations?eva=$station_id")
-                ->addHeader('Authorization', 'Bearer ' . $access_token)
-                ->send();
-        return json_decode($request, true);
     }
 }
