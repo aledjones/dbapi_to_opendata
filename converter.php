@@ -3,6 +3,7 @@
 class converter
 {
     const BASE_URL = "https://api.deutschebahn.com/";
+    const OPENDATA_BASE_URL = "https://transport.opendata.ch/v1";
 
     public function get_stationboard($access_token = "", $station_id, $date)
     {
@@ -13,7 +14,7 @@ class converter
             $request = \Httpful\Request::get(converter::BASE_URL . "fahrplan-plus/v1/departureBoard/$station_id?date=$date")
                 ->addHeader('Authorization', 'Bearer ' . $access_token)
                 ->send();
-
+        $coordiates = $this->get_coordinates(json_decode($request)[0]->stopName);
         $result = array();
         foreach (json_decode($request) as $item) {
             $data = array(
@@ -55,17 +56,32 @@ class converter
             } else {
                 $data['category'] = str_replace(" ", "", substr($item->name, 0, 3));
             }
-            $temp_journey = converter::get_journey_details($access_token, $item->detailsId);
+            $temp_journey = $this->get_journey_details($access_token, $item->detailsId);
             $data['operator'] = $temp_journey[0]['operator'];
             $data['to'] = $temp_journey[count($temp_journey) - 1]['stopName'];
-            $temp_station_details = converter::get_station_details($access_token, $item->stopId);
-            $data['stop']['station']['coordinate']['x'] = converter::get_main_point($temp_station_details[0]->evaNumbers)['x'];
-            $data['stop']['station']['coordinate']['y'] = converter::get_main_point($temp_station_details[0]->evaNumbers)['y'];
+            //$temp_station_details = $this->get_station_details($access_token, $item->stopId);
+
+            $data['stop']['station']['coordinate']['x'] = $coordiates['x'];
+            $data['stop']['station']['coordinate']['y'] = $coordiates['y'];
 
             array_push($result, $data);
         }
 
         return array('stationboard' => $result);
+    }
+
+    private function get_coordinates($station_name)
+    {
+        if (empty($station_name)) {
+            return null;
+        } else {
+            $request = \Httpful\Request::get(converter::OPENDATA_BASE_URL . "/locations?query=" . urlencode($station_name))
+                ->send();
+            $result = json_decode($request, true);
+            $result_set = array('x' => $result['stations'][0]['coordinate']['x'], 'y' => $result['stations'][0]['coordinate']['y']);
+            return $result_set;
+        }
+
     }
 
     public function get_journey_details($access_token, $journey_details)
@@ -89,17 +105,6 @@ class converter
                 ->addHeader('Authorization', 'Bearer ' . $access_token)
                 ->send();
         return json_decode($request->raw_body)->result;
-    }
-
-    private function get_main_point($evaNumbers)
-    {
-        $result_set = array('x' => null, 'y' => null);
-        foreach ($evaNumbers as $item) {
-            if ($item->isMain === true) {
-                $result_set = array('x' => $item->geographicCoordinates->coordinates[1], 'y' => $item->geographicCoordinates->coordinates[0]);
-            }
-        }
-        return $result_set;
     }
 
     public function get_station_id_by_name($access_token, $station_name)
