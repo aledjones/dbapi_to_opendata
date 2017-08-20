@@ -14,7 +14,7 @@ class converter
             $request = \Httpful\Request::get(converter::BASE_URL . "fahrplan-plus/v1/departureBoard/$station_id?date=$date")
                 ->addHeader('Authorization', 'Bearer ' . $access_token)
                 ->send();
-        $coordiates = $this->get_coordinates(json_decode($request)[0]->stopName);
+        $coordinates = $this->get_coordinates($access_token, $station_id, json_decode($request)[0]->stopName);
         $result = array();
         foreach (json_decode($request) as $item) {
             $data = array(
@@ -57,12 +57,12 @@ class converter
                 $data['category'] = str_replace(" ", "", substr($item->name, 0, 3));
             }
             $temp_journey = $this->get_journey_details($access_token, $item->detailsId);
-            $data['operator'] = $temp_journey[0]['operator'];
+            $data['operator'] = $temp_journey[count($temp_journey) - 1]['operator'];
             $data['to'] = $temp_journey[count($temp_journey) - 1]['stopName'];
             //$temp_station_details = $this->get_station_details($access_token, $item->stopId);
 
-            $data['stop']['station']['coordinate']['x'] = $coordiates['x'];
-            $data['stop']['station']['coordinate']['y'] = $coordiates['y'];
+            $data['stop']['station']['coordinate']['x'] = $coordinates['x'];
+            $data['stop']['station']['coordinate']['y'] = $coordinates['y'];
 
             array_push($result, $data);
         }
@@ -70,7 +70,7 @@ class converter
         return array('stationboard' => $result);
     }
 
-    private function get_coordinates($station_name)
+    private function get_coordinates($access_token = "", $station_id = "", $station_name)
     {
         if (empty($station_name)) {
             return null;
@@ -78,10 +78,37 @@ class converter
             $request = \Httpful\Request::get(converter::OPENDATA_BASE_URL . "/locations?query=" . urlencode($station_name))
                 ->send();
             $result = json_decode($request, true);
-            $result_set = array('x' => $result['stations'][0]['coordinate']['x'], 'y' => $result['stations'][0]['coordinate']['y']);
-            return $result_set;
+            if (!empty($result['stations'][0]['coordinate']['x'])) {
+                $result_set = array('x' => $result['stations'][0]['coordinate']['x'], 'y' => $result['stations'][0]['coordinate']['y']);
+                return $result_set;
+            } else {
+                $temp = converter::get_station_details($access_token, $station_id);
+                return converter::get_main_point($temp[0]->evaNumbers);
+            }
         }
 
+    }
+
+    public function get_station_details($access_token, $station_id)
+    {
+        if (empty($access_token))
+            throw new ErrorException("Access token cannot be empty!");
+        else
+            $request = \Httpful\Request::get(converter::BASE_URL . "stada/v2/stations?eva=$station_id")
+                ->addHeader('Authorization', 'Bearer ' . $access_token)
+                ->send();
+        return json_decode($request->raw_body)->result;
+    }
+
+    private function get_main_point($evaNumbers)
+    {
+        $result_set = array('x' => null, 'y' => null);
+        foreach ($evaNumbers as $item) {
+            if ($item->isMain === true) {
+                $result_set = array('x' => $item->geographicCoordinates->coordinates[1], 'y' => $item->geographicCoordinates->coordinates[0]);
+            }
+        }
+        return $result_set;
     }
 
     public function get_journey_details($access_token, $journey_details)
@@ -94,17 +121,6 @@ class converter
                 ->send();
 
         return json_decode($request->raw_body, true);
-    }
-
-    public function get_station_details($access_token, $station_id)
-    {
-        if (empty($access_token))
-            throw new ErrorException("Access token cannot be empty!");
-        else
-            $request = \Httpful\Request::get(converter::BASE_URL . "stada/v2/stations?eva=$station_id")
-                ->addHeader('Authorization', 'Bearer ' . $access_token)
-                ->send();
-        return json_decode($request->raw_body)->result;
     }
 
     public function get_station_id_by_name($access_token, $station_name)
