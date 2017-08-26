@@ -56,7 +56,7 @@ class converter
             } else {
                 $data['category'] = str_replace(" ", "", substr($item->name, 0, 3));
             }
-            $temp_journey = $this->get_journey_details($access_token, $item->detailsId);
+            $temp_journey = $this->get_journey_details($access_token, $item->detailsId, $item->dateTime, $item->stopId);
             $data['operator'] = $temp_journey[count($temp_journey) - 1]['operator'];
             $data['to'] = $temp_journey[count($temp_journey) - 1]['stopName'];
             //$temp_station_details = $this->get_station_details($access_token, $item->stopId);
@@ -111,16 +111,45 @@ class converter
         return $result_set;
     }
 
-    public function get_journey_details($access_token, $journey_details)
+    public function get_journey_details($access_token, $journey_details, $timestamp = "", $stationId = "")
     {
-        if (empty($access_token))
+        if (empty($access_token)) {
             throw new ErrorException("Access token cannot be empty!");
-        else
+        }
+
+        if (!empty($timestamp) AND !empty($stationId)) {
+            if (file_exists('cache/' . md5($timestamp . $stationId) . '.json')) {
+                if (time() - filemtime('cache/' . md5($timestamp . $stationId) . '.json') > 8 * 86400) {
+                    $request = \Httpful\Request::get(converter::BASE_URL . "fahrplan-plus/v1/journeyDetails/" . urlencode($journey_details))
+                        ->addHeader('Authorization', 'Bearer ' . $access_token)
+                        ->send();
+                    file_put_contents('cache/' . md5($timestamp . $stationId) . '.json', $request->raw_body);
+                    return json_decode($request->raw_body, true);
+                } else {
+                    return json_decode(file_get_contents('cache/' . md5($timestamp . $stationId) . '.json'), true);
+                }
+
+            }
+            if (!is_dir('cache/')) {
+                mkdir('cache/');
+                $request = \Httpful\Request::get(converter::BASE_URL . "fahrplan-plus/v1/journeyDetails/" . urlencode($journey_details))
+                    ->addHeader('Authorization', 'Bearer ' . $access_token)
+                    ->send();
+                file_put_contents('cache/' . md5($timestamp . $stationId) . '.json', $request->raw_body);
+                return json_decode($request->raw_body, true);
+            } else {
+                $request = \Httpful\Request::get(converter::BASE_URL . "fahrplan-plus/v1/journeyDetails/" . urlencode($journey_details))
+                    ->addHeader('Authorization', 'Bearer ' . $access_token)
+                    ->send();
+                file_put_contents('cache/' . md5($timestamp . $stationId) . '.json', $request->raw_body);
+                return json_decode($request->raw_body, true);
+            }
+        } else {
             $request = \Httpful\Request::get(converter::BASE_URL . "fahrplan-plus/v1/journeyDetails/" . urlencode($journey_details))
                 ->addHeader('Authorization', 'Bearer ' . $access_token)
                 ->send();
-
-        return json_decode($request->raw_body, true);
+            return json_decode($request->raw_body, true);
+        }
     }
 
     public function get_station_id_by_name($access_token, $station_name)
