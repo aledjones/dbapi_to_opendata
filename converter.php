@@ -119,7 +119,7 @@ class converter
 
         if (!empty($timestamp) AND !empty($stationId)) {
             if (file_exists('cache/' . md5($timestamp . $stationId) . '.json')) {
-                if (time() - filemtime('cache/' . md5($timestamp . $stationId) . '.json') > 24 * 3600) {
+                if (time() - filemtime('cache/' . md5($timestamp . $stationId) . '.json') > 1 * 3600) {
                     $request = \Httpful\Request::get(converter::BASE_URL . "fahrplan-plus/v1/journeyDetails/" . urlencode($journey_details))
                         ->addHeader('Authorization', 'Bearer ' . $access_token)
                         ->send();
