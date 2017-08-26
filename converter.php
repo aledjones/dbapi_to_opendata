@@ -131,7 +131,7 @@ class converter
 
             }
             if (!is_dir('cache/')) {
-                mkdir('cache/');
+                mkdir('cache/', 0660);
                 $request = \Httpful\Request::get(converter::BASE_URL . "fahrplan-plus/v1/journeyDetails/" . urlencode($journey_details))
                     ->addHeader('Authorization', 'Bearer ' . $access_token)
                     ->send();
